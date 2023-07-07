@@ -4,6 +4,8 @@ const { User } = require('./models/User.model');
 const { Product } = require('./models/Product.model');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt')
+const jwt  =require('jsonwebtoken');
+const { auth } = require('./middleware/auth');
 
 const app = express();
 app.use(cookieParser())
@@ -40,6 +42,7 @@ app.post("/register",async (req,res)=>{
 // let loginID = ""
 
 app.post("/login",async(req,res)=>{
+    // const todoid = req.params.todoid
     const {username,password} = req.body;
     try {
 
@@ -49,9 +52,10 @@ app.post("/login",async(req,res)=>{
         if(user){
             const match = await bcrypt.compare(password,user.password)
             if(match){
-                res.cookie('user_id',user._id);
+                // res.cookie('user_id',user._id);
 
-                return res.status(200).json({"User":user,"login":"login success"})
+                const token = jwt.sign({userId:user._id},"yogi")
+                return res.status(200).json({"User":user,"login":"login success","Token":token})
             }else{
                 return res.status(500).json({"error":"Invalid password"})
             }
@@ -64,18 +68,20 @@ app.post("/login",async(req,res)=>{
     }
 })
 
+app.use(auth);
+
 app.post("/product",async(req,res)=>{
-    let loginID  = req.cookies.user_id;
+    // let loginID  = req.cookies.user_id;
     
     try {
-        const user = await User.findOne({_id:loginID})
+        const user = await User.findOne({_id:req.body.userId})
         if(user){
 
             const product = new Product({
                 name : req.body.name,
                 description:req.body.description,
                 price:parseInt(req.body.price),
-                userID:loginID
+                userID:req.body.userId
             })
             
             await product.save();
